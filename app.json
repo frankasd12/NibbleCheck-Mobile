@@ -28,10 +28,11 @@
     },
     "plugins": [
       "expo-router",
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-barcode-scanner"
     ],
     "extra": {
-      "apiBase": "http://10.126.21.202:8000"
+      "apiBase": "https://nibblecheck-backend.onrender.com"
     },
     "permissions": [
       "CAMERA",
