@@ -10,6 +10,8 @@ import {
   TextInput,
   Image,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -47,6 +49,7 @@ export default function App() {
   const resetFeedback = () => {
     setError(null);
     setResults(null);
+    setResultSource(null);
   };
 
   // ---------- IMAGE FLOW ----------
@@ -122,8 +125,8 @@ export default function App() {
       const out = await resolveTextAsync(trimmed);
 
       const items: ClassifyItem[] = out.hits.map((h: any) => ({
-        label: h.token, // original token (for debugging if needed)
-        name: h.name, // canonical food name
+        label: h.token,
+        name: h.name,
         final_status: h.status as Verdict,
         rationale: h.notes ?? undefined,
         sources: h.sources ?? [],
@@ -163,7 +166,7 @@ export default function App() {
   };
 
   const handleBarCodeScanned = async (scan: BarcodeScanningResult) => {
-    // close first so we don't scan multiple times
+    // Close first so we don't scan multiple times
     setScannerVisible(false);
 
     setLoading(true);
@@ -172,15 +175,14 @@ export default function App() {
     try {
       const barcode = scan.data;
       console.log("Scanned barcode:", barcode);
-      
+
       const items = await checkBarcodeAsync(barcode);
       setResults(items);
       setResultSource("barcode");
     } catch (e: any) {
       console.error("Barcode check error:", e);
-      
-      // Display user-friendly error messages
-      const errorMsg = e?.message || "We couldn't look up that barcode. Please try again.";
+      const errorMsg =
+        e?.message || "We couldn't look up that barcode. Please try again.";
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -192,146 +194,167 @@ export default function App() {
   return (
     <View style={[styles.root, isDark && styles.rootDark]}>
       <StatusBar style={isDark ? "light" : "dark"} />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        {/* Header with theme toggle */}
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.appTitle, isDark && styles.appTitleDark]}>
-              NibbleCheck
-            </Text>
-            <Text
-              style={[styles.appSubtitle, isDark && styles.appSubtitleDark]}
-            >
-              Check if foods are safe before your dog takes a bite.
-            </Text>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header with theme toggle */}
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.appTitle, isDark && styles.appTitleDark]}>
+                NibbleCheck
+              </Text>
+              <Text
+                style={[styles.appSubtitle, isDark && styles.appSubtitleDark]}
+              >
+                Check if foods are safe before your dog takes a bite.
+              </Text>
+            </View>
+            <ThemeToggle
+              isDark={isDark}
+              onToggle={() => setIsDark((prev) => !prev)}
+            />
           </View>
-          <ThemeToggle
-            isDark={isDark}
-            onToggle={() => setIsDark((prev) => !prev)}
-          />
-        </View>
 
-        {/* Entry mode cards */}
-        <View style={styles.entryColumn}>
-          <EntryCard
-            label="Scan / Upload Food Image"
-            description="Use your camera or gallery to scan snacks and leftovers."
-            icon="📷"
-            active={activeMode === "image"}
-            isDark={isDark}
-            onPress={() => setActiveMode("image")}
-          />
-          <EntryCard
-            label="Scan Barcode"
-            description="Point at packaged food labels to scan UPC / EAN codes."
-            icon="🧾"
-            active={activeMode === "barcode"}
-            isDark={isDark}
-            onPress={() => setActiveMode("barcode")}
-          />
-          <EntryCard
-            label="Type a Food or Ingredient Name"
-            description='Search directly by food or ingredient, like “grapes” or “xylitol gum”.'
-            icon="⌨️"
-            active={activeMode === "text"}
-            isDark={isDark}
-            onPress={() => setActiveMode("text")}
-          />
-        </View>
-
-        {/* Active panel */}
-        {activeMode === "image" && (
-          <ImagePanel
-            imgUri={imgUri}
-            loading={loading}
-            onPick={pickImage}
-            onSnap={takePhoto}
-            onCheck={runImageCheck}
-            isDark={isDark}
-          />
-        )}
-
-        {activeMode === "barcode" && (
-          <BarcodePanel
-            loading={loading}
-            onStartScan={requestAndOpenScanner}
-            isDark={isDark}
-          />
-        )}
-
-        {activeMode === "text" && (
-          <TextPanel
-            query={textQuery}
-            onChangeQuery={setTextQuery}
-            onSubmit={runTextCheck}
-            loading={loading}
-            isDark={isDark}
-          />
-        )}
-
-        {/* Loading + error */}
-        {loading && (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={isDark ? "#E5E7EB" : undefined} />
-            <Text
-              style={[styles.loadingText, isDark && styles.loadingTextDark]}
-            >
-              Checking safety…
-            </Text>
+          {/* Entry mode cards */}
+          <View style={styles.entryColumn}>
+            <EntryCard
+              label="Scan / Upload Food Image"
+              description="Use your camera or gallery to scan snacks and leftovers."
+              icon="📷"
+              active={activeMode === "image"}
+              isDark={isDark}
+              onPress={() => setActiveMode("image")}
+            />
+            <EntryCard
+              label="Scan Barcode"
+              description="Point at packaged food labels to scan UPC / EAN codes."
+              icon="🧾"
+              active={activeMode === "barcode"}
+              isDark={isDark}
+              onPress={() => setActiveMode("barcode")}
+            />
+            <EntryCard
+              label="Type a Food or Ingredient Name"
+              description='Search directly by food or ingredient, like “grapes” or “xylitol gum”.'
+              icon="⌨️"
+              active={activeMode === "text"}
+              isDark={isDark}
+              onPress={() => setActiveMode("text")}
+            />
           </View>
-        )}
 
-        {!!error && (
-          <Text style={[styles.errorText, isDark && styles.errorTextDark]}>
-            {error}
-          </Text>
-        )}
+          {/* Active panel */}
+          {activeMode === "image" && (
+            <ImagePanel
+              imgUri={imgUri}
+              loading={loading}
+              onPick={pickImage}
+              onSnap={takePhoto}
+              onCheck={runImageCheck}
+              isDark={isDark}
+            />
+          )}
 
-        {/* Results */}
-        {!!results?.length && (
-          <View style={styles.resultsSection}>
-            <Text
-              style={[styles.resultsTitle, isDark && styles.resultsTitleDark]}
-            >
-              Results
-            </Text>
-            {resultSource && (
+          {activeMode === "barcode" && (
+            <BarcodePanel
+              loading={loading}
+              onStartScan={requestAndOpenScanner}
+              isDark={isDark}
+            />
+          )}
+
+          {activeMode === "text" && (
+            <TextPanel
+              query={textQuery}
+              onChangeQuery={setTextQuery}
+              onSubmit={runTextCheck}
+              loading={loading}
+              isDark={isDark}
+            />
+          )}
+
+          {/* Loading + error */}
+          {loading && (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={isDark ? "#E5E7EB" : undefined} />
+              <Text
+                style={[styles.loadingText, isDark && styles.loadingTextDark]}
+              >
+                Checking safety…
+              </Text>
+            </View>
+          )}
+
+          {!!error && (
+            <View style={[styles.errorBubble, isDark && styles.errorBubbleDark]}>
+              <View style={styles.errorBubbleHeader}>
+                <Text style={styles.errorBubbleIcon}>⚠️</Text>
+                <Text
+                  style={[
+                    styles.errorBubbleTitle,
+                    isDark && styles.errorBubbleTitleDark,
+                  ]}
+                >
+                  Something went wrong
+                </Text>
+              </View>
               <Text
                 style={[
-                  styles.resultsSubtitle,
-                  isDark && styles.resultsSubtitleDark,
+                  styles.errorBubbleText,
+                  isDark && styles.errorBubbleTextDark,
                 ]}
               >
-                Source:{" "}
-                {resultSource === "image"
-                  ? "image scan"
-                  : resultSource === "text"
-                  ? "text search"
-                  : "barcode scan"}
+                {error}
               </Text>
-            )}
+            </View>
+          )}
 
-            {results.map((item, idx) => (
-              <ResultCard
-                key={`${item.name ?? item.label}-${idx}`}
-                item={item}
-                isDark={isDark}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+          {/* Results */}
+          {!!results?.length && (
+            <View style={styles.resultsSection}>
+              <Text
+                style={[styles.resultsTitle, isDark && styles.resultsTitleDark]}
+              >
+                Results
+              </Text>
+              {resultSource && (
+                <Text
+                  style={[
+                    styles.resultsSubtitle,
+                    isDark && styles.resultsSubtitleDark,
+                  ]}
+                >
+                  Source:{" "}
+                  {resultSource === "image"
+                    ? "image scan"
+                    : resultSource === "text"
+                      ? "text search"
+                      : "barcode scan"}
+                </Text>
+              )}
+
+              {results.map((item, idx) => (
+                <ResultCard
+                  key={`${item.name ?? item.label}-${idx}`}
+                  item={item}
+                  isDark={isDark}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Barcode scanner modal */}
       <Modal visible={scannerVisible} animationType="slide" transparent>
         <View style={styles.scannerOverlay}>
-          <View
-            style={[styles.scannerCard, isDark && styles.scannerCardDark]}
-          >
+          <View style={[styles.scannerCard, isDark && styles.scannerCardDark]}>
             <Text
               style={[styles.scannerTitle, isDark && styles.scannerTitleDark]}
             >
@@ -454,9 +477,7 @@ function EntryCard(props: {
         <Text style={styles.entryIcon}>{icon}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text
-          style={[styles.entryLabel, isDark && styles.entryLabelDark]}
-        >
+        <Text style={[styles.entryLabel, isDark && styles.entryLabelDark]}>
           {label}
         </Text>
         <Text
@@ -484,14 +505,10 @@ function ImagePanel(props: {
 
   return (
     <View style={[styles.panel, isDark && styles.panelDark]}>
-      <Text
-        style={[styles.panelTitle, isDark && styles.panelTitleDark]}
-      >
+      <Text style={[styles.panelTitle, isDark && styles.panelTitleDark]}>
         Scan or Upload a Food Image
       </Text>
-      <Text
-        style={[styles.panelSubtitle, isDark && styles.panelSubtitleDark]}
-      >
+      <Text style={[styles.panelSubtitle, isDark && styles.panelSubtitleDark]}>
         Take a picture of your dog’s snack or upload from your gallery.
       </Text>
 
@@ -559,14 +576,10 @@ function BarcodePanel(props: {
   const { loading, onStartScan, isDark } = props;
   return (
     <View style={[styles.panel, isDark && styles.panelDark]}>
-      <Text
-        style={[styles.panelTitle, isDark && styles.panelTitleDark]}
-      >
+      <Text style={[styles.panelTitle, isDark && styles.panelTitleDark]}>
         Scan a Package Barcode
       </Text>
-      <Text
-        style={[styles.panelSubtitle, isDark && styles.panelSubtitleDark]}
-      >
+      <Text style={[styles.panelSubtitle, isDark && styles.panelSubtitleDark]}>
         We’ll look up the product, read its ingredients, and check each one
         against our database.
       </Text>
@@ -595,15 +608,11 @@ function TextPanel(props: {
 
   return (
     <View style={[styles.panel, isDark && styles.panelDark]}>
-      <Text
-        style={[styles.panelTitle, isDark && styles.panelTitleDark]}
-      >
+      <Text style={[styles.panelTitle, isDark && styles.panelTitleDark]}>
         Type a Food or Ingredient Name
       </Text>
-      <Text
-        style={[styles.panelSubtitle, isDark && styles.panelSubtitleDark]}
-      >
-        Example: “grapes”, “xylitol”, “peanut butter with xylitol”.
+      <Text style={[styles.panelSubtitle, isDark && styles.panelSubtitleDark]}>
+        Example: "grapes", "xylitol", "peanut butter with xylitol".
       </Text>
 
       <TextInput
@@ -614,6 +623,7 @@ function TextPanel(props: {
         placeholderTextColor={isDark ? "#6B7280" : "#9CA3AF"}
         autoCapitalize="none"
         autoCorrect={false}
+        returnKeyType="done"
       />
 
       <Pressable
@@ -635,25 +645,51 @@ function TextPanel(props: {
 function ResultCard({ item, isDark }: { item: ClassifyItem; isDark: boolean }) {
   const canonicalName = item.name || item.label || "Unknown item";
 
-  // Prefer explicit notes, or fall back to rationale
   const notes: string | undefined =
     (item as any).notes ?? item.rationale ?? undefined;
 
   const sources = item.sources ?? [];
   const hasSources = Array.isArray(sources) && sources.length > 0;
+  const showSourcesSection = hasSources || item.isProduct; // product card always shows Sources
 
   return (
-    <View style={[styles.resultCard, isDark && styles.resultCardDark]}>
+    <View
+      style={[
+        styles.resultCard,
+        isDark && styles.resultCardDark,
+        item.isProduct && styles.resultCardProduct,
+        item.isProduct && isDark && styles.resultCardProductDark,
+      ]}
+    >
+      {item.isProduct && (
+        <View style={styles.resultProductHeaderRow}>
+          <Text
+            style={[
+              styles.resultProductTag,
+              isDark && styles.resultProductTagDark,
+            ]}
+          >
+            Overall product safety
+          </Text>
+          <Text
+            style={[
+              styles.resultProductSubtag,
+              isDark && styles.resultProductSubtagDark,
+            ]}
+          >
+            Rated from its ingredients
+          </Text>
+        </View>
+      )}
+
       <View style={styles.resultHeaderRow}>
-        <Text
-          style={[styles.resultTitle, isDark && styles.resultTitleDark]}
-        >
+        <Text style={[styles.resultTitle, isDark && styles.resultTitleDark]}>
           {canonicalName}
         </Text>
         <StatusBadge status={item.final_status} />
       </View>
 
-      {typeof item.det_conf === "number" && (
+      {typeof item.det_conf === "number" && !item.isProduct && (
         <Text style={[styles.resultMeta, isDark && styles.resultMetaDark]}>
           Match confidence: {(item.det_conf * 100).toFixed(0)}%
         </Text>
@@ -665,7 +701,7 @@ function ResultCard({ item, isDark }: { item: ClassifyItem; isDark: boolean }) {
         </Text>
       )}
 
-      {hasSources && (
+      {showSourcesSection && (
         <View style={styles.sourcesContainer}>
           <Text
             style={[
@@ -675,6 +711,19 @@ function ResultCard({ item, isDark }: { item: ClassifyItem; isDark: boolean }) {
           >
             Sources
           </Text>
+
+          {item.isProduct && (
+            <Text
+              style={[
+                styles.sourceItem,
+                styles.sourceItemMuted,
+                isDark && styles.sourceItemDark,
+              ]}
+            >
+              • Ingredients pulled from OpenFoodFacts.org
+            </Text>
+          )}
+
           {sources.map((s, idx) => (
             <Text
               key={idx}
@@ -688,6 +737,7 @@ function ResultCard({ item, isDark }: { item: ClassifyItem; isDark: boolean }) {
     </View>
   );
 }
+
 
 function StatusBadge({ status }: { status: Verdict }) {
   const bg =
@@ -945,6 +995,44 @@ const styles = StyleSheet.create({
     color: "#FCA5A5",
   },
 
+  errorBubble: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2", // soft red background
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  errorBubbleDark: {
+    backgroundColor: "#2B1213",
+    borderColor: "#FCA5A5",
+  },
+  errorBubbleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  errorBubbleIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  errorBubbleTitle: {
+    color: "#991B1B",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  errorBubbleTitleDark: {
+    color: "#FECACA",
+  },
+  errorBubbleText: {
+    color: "#7F1D1D",
+    fontSize: 13,
+  },
+  errorBubbleTextDark: {
+    color: "#FECACA",
+  },
+
   resultsSection: {
     marginTop: 18,
   },
@@ -982,6 +1070,16 @@ const styles = StyleSheet.create({
   resultCardDark: {
     backgroundColor: "#020617",
     borderColor: "#1F2937",
+  },
+  resultProductTag: {
+    color: "#6B7280",
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  resultProductTagDark: {
+    color: "#9CA3AF",
   },
   resultHeaderRow: {
     flexDirection: "row",
@@ -1034,6 +1132,54 @@ const styles = StyleSheet.create({
   },
   sourceItemDark: {
     color: "#9CA3AF",
+  },
+
+  resultCardProduct: {
+    borderColor: "#4F46E5",
+    backgroundColor: "#EEF2FF",
+    shadowColor: "#4F46E5",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  resultCardProductDark: {
+    borderColor: "#6366F1",
+    backgroundColor: "#020617",
+    shadowColor: "#6366F1",
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  resultProductHeaderRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  resultProductTag: {
+    color: "#4F46E5",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  resultProductTagDark: {
+    color: "#A5B4FC",
+  },
+  resultProductSubtag: {
+    color: "#6B7280",
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  resultProductSubtagDark: {
+    color: "#9CA3AF",
+  },
+
+  // (you already have sourcesLabel / sourceItem / sourceItemDark)
+  sourceItemMuted: {
+    opacity: 0.9,
   },
 
   statusBadge: {
